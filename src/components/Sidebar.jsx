@@ -1,10 +1,9 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import logo from "/wigglenote_logo.svg";
 
 import {
   Search,
-  FilePlus,
   Star,
   Trash2,
   Settings,
@@ -18,6 +17,7 @@ import {
   Edit,
   LayoutTemplate,
   Plus,
+  ArrowRight,
 } from "lucide-react";
 import readNote from "../services/notebook/readNote.services";
 import SearchBar from "./Search";
@@ -40,6 +40,7 @@ import exportPdf from "../services/notebook/downloadPDFNote";
 import deleteNote from "../services/notebook/deleteNote.services";
 import { SettingsContext } from "../store/Settings.context";
 import { getThemeColors } from "../constants/Theme";
+import { authClient } from "@/lib/auth-client";
 
 // ─── Nav item used for quick actions + collections ────────────────────────────
 function SideNavLink({ to, icon, children, colors }) {
@@ -114,7 +115,7 @@ export default function Sidebar() {
   const [newTitle, setNewTitle] = useState("");
 
   // ---THEME------------------------------
-  const { settings, setSettings } = useContext(SettingsContext);
+  const { settings } = useContext(SettingsContext);
   const COLORS = useMemo(
     () => getThemeColors(settings.theme, settings.accent_color),
     [settings.theme, settings.accent_color],
@@ -319,6 +320,9 @@ export default function Sidebar() {
     window.dispatchEvent(new Event("note-updated"));
   };
 
+  const { data: session, isLoading } = authClient.useSession();
+  const user = isLoading ? null : session?.user;
+
   return (
     <>
       <aside
@@ -404,7 +408,12 @@ export default function Sidebar() {
           >
             <span className="flex items-center gap-2.5">
               <Search size={15} style={{ color: COLORS.textPrimary }} />
-              <span className="font-medium" style={{ color: COLORS.textPrimary }}>Search</span>
+              <span
+                className="font-medium"
+                style={{ color: COLORS.textPrimary }}
+              >
+                Search
+              </span>
             </span>
             <kbd
               className="text-[10px] px-1.5 py-0.5 rounded font-mono"
@@ -537,6 +546,44 @@ export default function Sidebar() {
           >
             Settings
           </SideNavLink>
+        </div>
+        <div
+          onClick={()=>{navigate("/profile")}}
+          className="flex items-center gap-2 px-3 py-2 group cursor-pointer"
+          style={{
+            borderTop: `1px solid ${COLORS.border}`,
+            background: user?.emailVerified ? null : "#ff000033",
+          }}
+        >
+          {user?.image ? (
+            <img
+              src={user.image}
+              alt={user.name}
+              className="w-6 h-6 rounded-full mr-2"
+            />
+          ) : (
+            <img
+              src={"https://dummyimage.com/40x40/000/fff"}
+              className="w-8 h-8 rounded-full"
+              referrerPolicy="no-referrer"
+              alt={user?.name}
+            />
+          )}
+          <span className="flex-1 min-w-0 flex-col">
+            <p
+              className="font-bold"
+             
+            >
+              {user?.name}
+            </p>
+            {!user?.emailVerified && (
+              <p onClick={(e)=>{e.stopPropagation() ;navigate("/verify-email")}}  style={{
+                color: user?.emailVerified ? COLORS.textPrimary : "#ff0000",
+              }}>Email Not Verified</p>
+            )}
+            {user?.emailVerified && <p>{user?.email}</p>}
+          </span>
+          <ArrowRight size={15} className="group-hover:scale-105 group-hover:translate-x-1 transition-all"/>
         </div>
 
         {/* ── Drag handle ── */}

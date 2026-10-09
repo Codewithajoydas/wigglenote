@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useContext, useMemo } from "react";
 import { EditorContent } from "@tiptap/react";
 import CreateFab from "../components/createFab";
-import Alert from "../components/ui/alert";
 import Toolbar from "../components/Toolbar";
 import useTiptapEditor from "../hook/useEditor";
 import useNotebookCRUD from "../hook/useNotebookCRUD";
@@ -24,7 +23,6 @@ export default function CreateNote() {
   const [temLoading, setTemLoading] = useState(false);
   const [noteId, setNoteId] = useState(null);
   const [editable, setEditable] = useState(true);
-  const [alert, setAlert] = useState(null);
   const [title, setTitle] = useState("");
   const [cover, setCover] = useState(null);
   const [showCoverPanel, setShowCoverPanel] = useState(false);
@@ -45,6 +43,7 @@ export default function CreateNote() {
   // ---- Load template -------
   useEffect(() => {
     if (!editor || !id) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTemLoading(true);
     const template = loadTemplates(id);
     if (!template) {
@@ -70,8 +69,40 @@ export default function CreateNote() {
     cover,
     setNoteId,
     setSaved,
-    setAlert,
   });
+
+useEffect(() => {
+  if (!editor || temLoading) return;
+
+  const handleKeyboard = (event) => {
+    if (
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      event.key.length !== 1
+    ) {
+      return;
+    }
+
+    const target = event.target;
+
+    if (
+      target?.closest(
+        'input, textarea, select, [contenteditable="true"], [role="dialog"]'
+      )
+    ) {
+      return;
+    }
+
+    editor.commands.focus();
+  };
+
+  window.addEventListener("keydown", handleKeyboard);
+
+  return () => {
+    window.removeEventListener("keydown", handleKeyboard);
+  };
+}, [editor, temLoading]);
 
   const { handleImageUpload } = useNoteImage({ editor });
 
@@ -126,7 +157,6 @@ export default function CreateNote() {
         noteId={noteId}
         setNoteId={setNoteId}
         setSaved={setSaved}
-        setAlert={setAlert}
       />
 
       <div className="editor overflow-y-auto overflow-x-hidden flex-1">
@@ -170,14 +200,7 @@ export default function CreateNote() {
         onChange={handleImageUpload}
       />
       <CreateFab title="save" onClick={create} />
-      {alert && (
-        <Alert
-          type={alert.type}
-          title={alert.title}
-          message={alert.message}
-          onClose={() => setAlert(null)}
-        />
-      )}
+      
     </div>
   );
 }

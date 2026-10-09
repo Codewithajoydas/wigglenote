@@ -1,54 +1,65 @@
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
 import createNote from "../services/notebook/createNote.services";
 import updateNote from "../services/notebook/updateNote.services";
-import checkSaved from "../services/notebook/checkSaved";
-import { SettingsContext } from "../store/Settings.context";
 
-// Max characters for an auto-detected title (first line of the note can be
-// arbitrarily long if the user never presses Enter, so it must be capped).
+import { SettingsContext } from "../store/Settings.context";
+import { toast } from "@/components/ui/toast";
+
 const AUTO_TITLE_MAX_LEN = 80;
 
-/**
- * Derives a safe title from raw editor text: takes the first non-empty line,
- * then truncates to AUTO_TITLE_MAX_LEN characters at the nearest word
- * boundary (falls back to a hard cut if there's no space to break on).
- */
-function extractAutoTitle(editorText) {
+function extractAutoTitle(editorText = "") {
   const firstLine =
     editorText
-      .trim()
-      .split("\n")
-      .find((line) => line.trim()) || "";
+      .split(/\r?\n/)
+      .find((line) => line.trim())
+      ?.trim() || "";
 
-  if (!firstLine) return "Untitled Note";
-  if (firstLine.length <= AUTO_TITLE_MAX_LEN) return firstLine;
+  if (!firstLine) {
+    return "Untitled Note";
+  }
+
+  if (firstLine.length <= AUTO_TITLE_MAX_LEN) {
+    return firstLine;
+  }
 
   const truncated = firstLine.slice(0, AUTO_TITLE_MAX_LEN);
   const lastSpace = truncated.lastIndexOf(" ");
-  const base = lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated;
+
+  const base =
+    lastSpace > 0
+      ? truncated.slice(0, lastSpace)
+      : truncated;
+
   return `${base}…`;
 }
 
-/**
- * useNotebookCRUD
- *
- * Handles the full note lifecycle:
- *  - First save   → createNote, stores returned id
- *  - Subsequent   → updateNote (autosave on editor change, title/cover change, Ctrl+S)
- *  - Title        → if the user hasn't typed a title, it's auto-detected
- *                    from the first non-empty line of the editor as they type,
- *                    capped at AUTO_TITLE_MAX_LEN characters
- *
- * @param {object} params
- * @param {import('@tiptap/react').Editor} params.editor     - Tiptap editor instance
- * @param {string|null}  params.noteId                       - Current note id (null = not yet created)
- * @param {string}       params.title                        - Note title
- * @param {object|null}  params.cover                        - { type, value } or null
- * @param {function}     params.setNoteId
- * @param {function}     params.setSaved
- * @param {function}     params.setAlert
- * @param {number}       [params.debounceMs=1000]            - Autosave debounce delay
- */
+function normalizeTitle(title, editorText) {
+  const normalizedTitle = title?.trim() || "";
+
+  if (
+    !normalizedTitle ||
+    normalizedTitle === "Untitled Note"
+  ) {
+    return extractAutoTitle(editorText);
+  }
+
+  return normalizedTitle;
+}
+
+function areCoversEqual(first, second) {
+  return (
+    (first?.type ?? null) === (second?.type ?? null) &&
+    (first?.value ?? null) === (second?.value ?? null)
+  );
+}
+
 export default function useNotebookCRUD({
   editor,
   noteId,
@@ -56,141 +67,225 @@ export default function useNotebookCRUD({
   cover,
   setNoteId,
   setSaved,
-  setAlert,
   debounceMs = 1000,
 }) {
-  // Keep a stable ref so callbacks always see the latest noteId
-  // without needing it in every dependency array
-  const noteIdRef = useRef(noteId);
+  const { settings } = useContext(SettingsContext);
+
   const [title_a, setTitle] = useState(title);
+
+  const noteIdRef = useRef(noteId);
+  const titleRef = useRef(title);
+  const saveTimeoutRef = useRef(null);
+
+  const isCreatingRef = useRef(false);
+  const isSavingRef = useRef(false);
+  const saveQueuedRef = useRef(false);
+  const editVersionRef = useRef(0);
+
+  const isAutoSaveOn = Number(settings.auto_save) === 1;
+
   useEffect(() => {
     noteIdRef.current = noteId;
   }, [noteId]);
 
-  // Ref mirror of the current title prop, read inside the editor "update"
-  // listener so that effect doesn't need to re-subscribe on every keystroke.
-  const titleRef = useRef(title);
   useEffect(() => {
     titleRef.current = title;
-    setTitle(title); // keep title_a in sync if parent updates title directly
+    setTitle(title);
   }, [title]);
-
-  const saveTimeout = useRef(null);
-
-  // ─── settings ───────────────────────────────────────────────────────────────
-
-  const { settings } = useContext(SettingsContext);
-
-  // SQLite stores auto_save as INTEGER (0/1), but depending on IPC serialization
-  // it can arrive as a string ("0"/"1"). Boolean("0") === true, so coerce via
-  // Number(...) === 1 instead of relying on Boolean() directly.
-  const isAutoSaveOn = Number(settings.auto_save) === 1;
-
-  // ─── helpers ────────────────────────────────────────────────────────────────
 
   const buildPayload = useCallback(
     (id = null) => {
-      const autoTitle = extractAutoTitle(editor.getText());
+      if (!editor) {
+        throw new Error("Editor is not available.");
+      }
 
-      const normalizedTitle =
-        title.trim() === "Untitled Note" ? "" : title.trim();
+      const editorText = editor.getText();
 
       return {
         ...(id ? { id } : {}),
-        title: normalizedTitle || autoTitle,
+        title: normalizeTitle(title, editorText),
         content: JSON.stringify(editor.getJSON()),
         cover_type: cover?.type ?? null,
         cover_value: cover?.value ?? null,
+        synced: 0,
       };
     },
-    [editor, title, cover],
+    [editor, title, cover]
   );
 
-  const notify = useCallback(
-    (type, title, message) => {
-      setAlert({ type, title, message });
-    },
-    [setAlert],
-  );
+  const dispatchNoteUpdated = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("note-updated"));
+  }, []);
 
-  // ─── create (first save) ────────────────────────────────────────────────────
+  const clearSaveTimeout = useCallback(() => {
+    if (saveTimeoutRef.current !== null) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+  }, []);
 
   const create = useCallback(async () => {
-    if (!editor || noteIdRef.current) return;
-    if (editor.isEmpty) {
-      notify("error", "Error", "Note is empty.");
+    if (!editor || noteIdRef.current || isCreatingRef.current) {
       return;
     }
+
+    if (editor.isEmpty) {
+      toast.add({
+        type: "error",
+        title: "Error",
+        description: "Note is empty.",
+      });
+
+      return;
+    }
+
+    isCreatingRef.current = true;
+    clearSaveTimeout();
+
+    const currentVersion = editVersionRef.current;
+
     try {
       const result = await createNote(buildPayload());
+
+      if (!result?.id) {
+        throw new Error("Note creation returned no ID.");
+      }
+
+      noteIdRef.current = result.id;
       setNoteId(result.id);
-      noteIdRef.current = result.id; // keep ref in sync immediately
-      setSaved(true);
-      notify("success", "Saved", "Note created successfully.");
-      window.dispatchEvent(new CustomEvent("note-updated"));
-    } catch (err) {
-      console.error("Failed to create note:", err);
-      notify("error", "Error", "Failed to create note.");
+
+      setSaved(editVersionRef.current === currentVersion);
+
+      dispatchNoteUpdated();
+
+      toast.add({
+        type: "success",
+        title: "Saved",
+        description: "Note created successfully.",
+      });
+    } catch (error) {
+      console.error("Failed to create note:", error);
+
+      toast.add({
+        type: "error",
+        title: "Error",
+        description: "Failed to create note.",
+      });
+    } finally {
+      isCreatingRef.current = false;
     }
-  }, [editor, buildPayload, setNoteId, setSaved, notify]);
+  }, [
+    editor,
+    buildPayload,
+    setNoteId,
+    setSaved,
+    clearSaveTimeout,
+    dispatchNoteUpdated,
+  ]);
 
-  // ─── update (autosave) ──────────────────────────────────────────────────────
+  const save = useCallback(
+    async (options = {}) => {
+      const { showSuccess = true } = options;
+      const id = noteIdRef.current;
 
-  const save = useCallback(async () => {
-    const id = noteIdRef.current;
-    if (!editor || !id) return;
+      if (!editor || !id) {
+        return;
+      }
 
-    try {
-      await updateNote(buildPayload(id));
-      setSaved(true);
-      notify("success", "Saved", "Note saved successfully.");
-      window.dispatchEvent(new CustomEvent("note-updated"));
-    } catch (err) {
-      console.error("Auto save failed:", err);
-      notify("error", "Error", "Failed to save note.");
-    }
-  }, [editor, buildPayload, setSaved, notify]);
+      if (isSavingRef.current) {
+        saveQueuedRef.current = true;
+        return;
+      }
 
-  // ─── debounced save ─────────────────────────────────────────────────────────
+      isSavingRef.current = true;
+
+      let savedVersion = editVersionRef.current;
+
+      try {
+        do {
+          saveQueuedRef.current = false;
+
+          const currentVersion = editVersionRef.current;
+          const payload = buildPayload(id);
+
+          await updateNote(payload);
+
+          savedVersion = currentVersion;
+        } while (saveQueuedRef.current);
+
+        const isFullySaved =
+          savedVersion === editVersionRef.current;
+
+        setSaved(isFullySaved);
+
+        dispatchNoteUpdated();
+
+        if (showSuccess && isFullySaved) {
+          toast.add({
+            type: "success",
+            title: "Saved",
+            description: "Note saved successfully.",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to save note:", error);
+
+        setSaved(false);
+
+        toast.add({
+          type: "error",
+          title: "Error",
+          description: "Failed to save note.",
+        });
+      } finally {
+        isSavingRef.current = false;
+      }
+    },
+    [
+      editor,
+      buildPayload,
+      setSaved,
+      dispatchNoteUpdated,
+    ]
+  );
 
   const debouncedSave = useCallback(() => {
-    clearTimeout(saveTimeout.current);
-    saveTimeout.current = setTimeout(save, debounceMs);
-  }, [save, debounceMs]);
+    clearSaveTimeout();
 
-  // ─── Ctrl + S ───────────────────────────────────────────────────────────────
-  // Note: manual save (Ctrl+S) intentionally ignores auto_save — it should
-  // always work regardless of the autosave setting.
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        clearTimeout(saveTimeout.current); // flush any pending debounce
-        noteIdRef.current ? save() : create();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [save, create]);
-
-  // ─── auto-detect title from first line (length-capped) ─────────────────────
+    saveTimeoutRef.current = setTimeout(() => {
+      saveTimeoutRef.current = null;
+      void save({ showSuccess: false });
+    }, Math.max(0, debounceMs));
+  }, [save, debounceMs, clearSaveTimeout]);
 
   const auto_detect_title = useCallback(() => {
+    if (!editor) {
+      return;
+    }
+
+    const currentTitle = titleRef.current?.trim() || "";
+
+    if (
+      currentTitle &&
+      currentTitle !== "Untitled Note"
+    ) {
+      return;
+    }
+
     setTitle(extractAutoTitle(editor.getText()));
   }, [editor]);
 
-  // ─── editor content change → autosave + title auto-detect ──────────────────
-
   useEffect(() => {
-    if (!editor) return;
+    if (!editor) {
+      return;
+    }
+
     const onUpdate = () => {
+      editVersionRef.current += 1;
+
       setSaved(false);
 
-      // Only auto-detect the title while the user hasn't typed one themselves.
-      if (!titleRef.current || !titleRef.current.trim()) {
-        auto_detect_title();
-      }
+      auto_detect_title();
 
       if (noteIdRef.current && isAutoSaveOn) {
         debouncedSave();
@@ -198,22 +293,99 @@ export default function useNotebookCRUD({
     };
 
     editor.on("update", onUpdate);
+
     return () => {
-      clearTimeout(saveTimeout.current);
       editor.off("update", onUpdate);
     };
-  }, [editor, debouncedSave, setSaved, auto_detect_title]); // isAutoSaveOn checked via closure, titleRef via ref
+  }, [
+    editor,
+    isAutoSaveOn,
+    debouncedSave,
+    auto_detect_title,
+    setSaved,
+  ]);
 
-  // ─── title / cover change → autosave ────────────────────────────────────────
+  const previousMetaRef = useRef({
+    noteId,
+    title,
+    coverType: cover?.type ?? null,
+    coverValue: cover?.value ?? null,
+  });
 
   useEffect(() => {
-    if (!noteIdRef.current) return;
-    if (!isAutoSaveOn) return;
-    debouncedSave();
-    return () => clearTimeout(saveTimeout.current);
-  }, [title, cover, debouncedSave, isAutoSaveOn]);
+    const previous = previousMetaRef.current;
 
-  // ─── public API ─────────────────────────────────────────────────────────────
+    previousMetaRef.current = {
+      noteId,
+      title,
+      coverType: cover?.type ?? null,
+      coverValue: cover?.value ?? null,
+    };
 
-  return { create, save, auto_detect_title, title_a };
+    if (!noteIdRef.current || !isAutoSaveOn) {
+      return;
+    }
+
+    if (previous.noteId !== noteId) {
+      return;
+    }
+
+    const titleChanged = previous.title !== title;
+
+    const coverChanged = !areCoversEqual(
+      {
+        type: previous.coverType,
+        value: previous.coverValue,
+      },
+      cover
+    );
+
+    if (titleChanged || coverChanged) {
+      debouncedSave();
+    }
+  }, [
+    noteId,
+    title,
+    cover,
+    isAutoSaveOn,
+    debouncedSave,
+  ]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.key.toLowerCase() === "s"
+      ) {
+        event.preventDefault();
+
+        clearSaveTimeout();
+
+        if (noteIdRef.current) {
+          void save();
+        } else {
+          void create();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [save, create, clearSaveTimeout]);
+
+  useEffect(() => {
+    return () => {
+      clearSaveTimeout();
+    };
+  }, [clearSaveTimeout]);
+
+  return {
+    create,
+    save,
+    auto_detect_title,
+    title_a,
+  };
 }

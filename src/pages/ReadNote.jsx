@@ -38,6 +38,7 @@ import TurndownService from "turndown";
 import { SettingsContext } from "../store/Settings.context";
 import useTiptapEditor from "../hook/useEditor";
 import { getThemeColors } from "../constants/Theme";
+import { cloudSync } from "@/lib/cloud-sync";
 
 // ─── Font size map ────────────────────────────────────────────────────────────
 const FONT_SIZE_MAP = {
@@ -187,9 +188,11 @@ export default function ReadNote() {
     return () => window.removeEventListener("note-updated", loadNote);
   }, [id]);
 
+
   const content = useMemo(() => {
     if (!note?.content) return {};
     try {
+      console.log("Notebook Content:- ", JSON.parse(note));
       return JSON.parse(note.content);
     } catch {
       return {};

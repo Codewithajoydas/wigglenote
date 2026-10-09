@@ -14,7 +14,6 @@ import { TableCell } from "@tiptap/extension-table-cell";
 import { useEditor } from "@tiptap/react";
 import { DOMParser as ProseMirrorDOMParser } from "@tiptap/pm/model";
 import StarterKit from "@tiptap/starter-kit";
-import React from "react";
 import { markdownToHtml } from "../utils/Markdowntohtml";
 
 /**
@@ -31,6 +30,7 @@ function looksLikeMarkdown(text) {
     /^#{1,6}\s+.+/m, // headings
     /^\s*[-*+]\s+\[[ xX]\]\s+.+/m, // task list items
     /^```/m, // fenced code block
+    // eslint-disable-next-line no-constant-binary-expression
     /^\s*\|.+\|\s*$/m && /^\s*\|[-:\s|]+\|\s*$/m, // markdown table
     /^>\s+.+/m, // blockquote
   ];

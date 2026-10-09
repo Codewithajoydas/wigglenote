@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useMemo } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import ToolbarButton from "./ui/toolbarButton";
 import { CoverPanel } from "./CoverPanel";
@@ -36,6 +36,7 @@ import {
 import Divider from "./ui/Divider";
 import { SettingsContext } from "../store/Settings.context";
 import { getThemeColors } from "../constants/Theme";
+import { toast } from "./ui/toast";
 /**
  * @function Toolbar
  * @description A toolbar for editing notes
@@ -75,7 +76,6 @@ export default function Toolbar({
   noteId,
   setNoteId,
   setSaved,
-  setAlert,
 }) {
   const navigate = useNavigate();
   const handleSubmit = useCallback(async () => {
@@ -94,10 +94,10 @@ export default function Toolbar({
       const result = await createNote(note);
       setNoteId(result.id);
       setSaved(true);
-      setAlert({
+      toast.add({
         type: "success",
         title: "Saved",
-        message: "Note created successfully.",
+        description: "Note created successfully.",
       });
       window.dispatchEvent(new CustomEvent("note-updated"));
     } catch (err) {
@@ -105,7 +105,7 @@ export default function Toolbar({
     }
   }, [editor, noteId, title, cover]);
 
-  const { settings, setSettings } = useContext(SettingsContext);
+  const { settings } = useContext(SettingsContext);
   const COLORS = useMemo(
     () => getThemeColors(settings.theme, settings.accent_color),
     [settings.theme, settings.accent_color],
@@ -351,7 +351,7 @@ export default function Toolbar({
           active={editor.isActive("codeBlock")}
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
         >
-          <Code2 size={15} />
+        <Code2 size={15} />
         </ToolbarButton>
         <ToolbarButton
           label="Rule"

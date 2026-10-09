@@ -3,7 +3,6 @@ import { EditorContent } from "@tiptap/react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import CreateFab from "../components/createFab";
-import Alert from "../components/ui/alert";
 import Toolbar from "../components/Toolbar";
 import useTiptapEditor from "../hook/useEditor";
 import useNotebookCRUD from "../hook/useNotebookCRUD";
@@ -18,7 +17,6 @@ export default function EditNote() {
   const { id } = useParams();
 
   const [editable, setEditable] = useState(true);
-  const [alert, setAlert] = useState(null);
   const [title, setTitle] = useState("Untitled Note");
   const [cover, setCover] = useState(null);
   const [showCoverPanel, setShowCoverPanel] = useState(false);
@@ -44,7 +42,6 @@ export default function EditNote() {
     cover,
     setNoteId: () => {},
     setSaved,
-    setAlert,
   });
 
   const { handleImageUpload } = useNoteImage({ editor });
@@ -122,7 +119,6 @@ export default function EditNote() {
         noteId={id}
         setNoteId={() => {}}
         setSaved={setSaved}
-        setAlert={setAlert}
       />
 
       <div className="editor overflow-y-auto overflow-x-hidden flex-1">
@@ -165,14 +161,6 @@ export default function EditNote() {
 
       <CreateFab title="save" onClick={save} />
 
-      {alert && (
-        <Alert
-          type={alert.type}
-          title={alert.title}
-          message={alert.message}
-          onClose={() => setAlert(null)}
-        />
-      )}
     </div>
   );
 }

@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useContext, useMemo } from "react";
-import { Star, Clock3, FileText, Trash2, RotateCcw, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState, useContext, useMemo } from "react";
+import { Clock3, FileText, Trash2, RotateCcw, X } from "lucide-react";
 import Header from "../components/Header";
 import getDeleted from "../services/notebook/getDeleted.services";
 import restoreNote from "../services/notebook/restoreNote.services";
@@ -10,10 +9,10 @@ import Alert from "../components/ui/alert";
 import ContextMenu from "../components/contextMenu";
 import { SettingsContext } from "../store/Settings.context";
 import { getThemeColors } from "../constants/Theme";
+import { toast } from "@/components/ui/toast";
 
 export default function Trash() {
   const [notes, setNotes] = useState([]);
-  const navigate = useNavigate();
   const [alert, setAlert] = useState(null);
   const [open, setOpen] = useState(false);
   const [openNotice, setOpenNotice] = useState(true);
@@ -28,8 +27,7 @@ export default function Trash() {
   );
 
   const showAlert = ({ type, title, message }) => {
-    setAlert(null);
-    requestAnimationFrame(() => setAlert({ type, title, message }));
+    requestAnimationFrame(() => toast.add({ type, title, description: message }));
   };
 
   const items = [
@@ -61,6 +59,7 @@ export default function Trash() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     getNotes();
   }, []);
 
@@ -104,6 +103,7 @@ export default function Trash() {
       });
       window.dispatchEvent(new CustomEvent("note-updated"));
       getNotes();
+    // eslint-disable-next-line no-unused-vars
     } catch (error) {
       showAlert({
         type: "error",

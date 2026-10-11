@@ -6,7 +6,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+*{
+  scroll-behavior: smooth;
+}
 /* Default: dark theme */
+
 :root {
   --bg-primary: #09090b; /* zinc-950 */
   --bg-secondary: #111111; /* your card bg */
@@ -507,9 +511,7 @@ body {
 /* Selection */
 /* -------------------------------- */
 
-.ProseMirror ::selection {
-  background: color-mix(in srgb, var(--accent) 30%, transparent);
-}
+
 
 /* -------------------------------- */
 /* Placeholder */

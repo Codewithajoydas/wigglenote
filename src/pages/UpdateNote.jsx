@@ -34,7 +34,7 @@ export default function EditNote() {
   const editor = useTiptapEditor({
     spellcheck: Boolean(Number(settings?.spell_check)),
   });
-  
+
   const { save } = useNotebookCRUD({
     editor,
     noteId: id,
@@ -142,11 +142,21 @@ export default function EditNote() {
 
         <div className="flex-1">
           <div className="max-w-3xl mx-auto">
-            <EditorContent
-              editor={editor}
-              spellCheck
-              className="px-8 py-6 focus:outline-none"
-            />
+            <>
+              <style>
+                {`
+      .tiptap ::selection {
+        background-color: ${COLORS.accent}cc;
+        color: ${COLORS.textPrimary};
+      }
+    `}
+              </style>
+              <EditorContent
+                editor={editor}
+                spellCheck
+                className="px-8 py-6 focus:outline-none"
+              />
+            </>
           </div>
         </div>
       </div>
@@ -160,7 +170,6 @@ export default function EditNote() {
       />
 
       <CreateFab title="save" onClick={save} />
-
     </div>
   );
 }

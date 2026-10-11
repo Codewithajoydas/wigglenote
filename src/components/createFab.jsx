@@ -2,6 +2,7 @@ import { useContext, useMemo } from "react";
 import { Plus, Save, Pen } from "lucide-react";
 import { SettingsContext } from "../store/Settings.context";
 import { getThemeColors } from "../constants/Theme";
+import { Button } from "./ui/button";
 
 export default function CreateFab({ onClick = () => {}, title = "create" }) {
   const isSave = title.toLocaleLowerCase() === "save";
@@ -14,9 +15,9 @@ export default function CreateFab({ onClick = () => {}, title = "create" }) {
   );
 
   return (
-    <button
+    <Button
       onClick={onClick}
-      className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 h-11 rounded-xl shadow-lg transition-all duration-200 cursor-pointer"
+      className="fixed bottom-6 right-6 z-50  cursor-pointer"
       style={{ backgroundColor: COLORS.accent, color: "#ffffff" }}
       onMouseEnter={(e) => (e.currentTarget.style.filter = "brightness(1.15)")}
       onMouseLeave={(e) => (e.currentTarget.style.filter = "brightness(1)")}
@@ -31,6 +32,6 @@ export default function CreateFab({ onClick = () => {}, title = "create" }) {
       <span className="text-sm font-medium">
         {isSave ? "Save Note" : isEdit ? "Edit Note" : "New Note"}
       </span>
-    </button>
+    </Button>
   );
 }

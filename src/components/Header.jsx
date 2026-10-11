@@ -3,6 +3,7 @@ import React, { useContext, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { SettingsContext } from "../store/Settings.context";
 import { getThemeColors } from "../constants/Theme";
+import { Button } from "./ui/button";
 
 export default function Header({ children, title }) {
   const navigate = useNavigate();
@@ -30,21 +31,20 @@ export default function Header({ children, title }) {
           className="flex items-center gap-3"
           style={{ WebkitAppRegion: "no-drag" }}
         >
-          <button
+          <Button
+            variant="ghost"
             onClick={() => navigate(-1)}
-            className="h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-200"
-            style={{ color: COLORS.textMuted }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = COLORS.bgHover;
-              e.currentTarget.style.color = COLORS.accentText;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.color = COLORS.textMuted;
+            style={{
+              WebkitAppRegion: "none",
+              color: COLORS.textPrimary,
+              cursor:"pointer",
+              
+              marginRight:3
             }}
           >
-            <ArrowLeft size={18} />
-          </button>
+            <ArrowLeft size={24} />
+            Back
+          </Button>
 
           <div>
             <h4

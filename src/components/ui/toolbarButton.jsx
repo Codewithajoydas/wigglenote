@@ -1,6 +1,7 @@
 import { useContext, useMemo } from "react";
 import { SettingsContext } from "../../store/Settings.context";
 import { getThemeColors } from "../../constants/Theme";
+import { Button } from "./button";
 
 // ─── Toolbar Button ───────────────────────────────────────────────────────────
 function ToolbarButton({
@@ -13,17 +14,18 @@ function ToolbarButton({
   const { settings } = useContext(SettingsContext);
   const COLORS = useMemo(() => getThemeColors(settings.theme), [settings.theme]);
   return (
-    <button
-      type="button"
+    <Button
+      // type="button"
       disabled={disabled}
       title={label}
+      variant="secondary"
       onMouseDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
 
         if (!disabled) onClick?.();
       }}
-      className="group relative shrink-0 flex flex-col items-center justify-center gap-0.5 h-11 w-11 rounded-xl transition-all duration-150 select-none"
+      className="flex-col p-2 capitalize"
       style={{
         opacity: disabled ? 0.3 : 1,
         cursor: disabled ? "not-allowed" : "pointer",
@@ -56,7 +58,7 @@ function ToolbarButton({
           {label}
         </span>
       )}
-    </button>
+    </Button>
   );
 }
 

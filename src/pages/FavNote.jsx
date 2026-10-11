@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useContext, useMemo } from "react";
 import { SettingsContext } from "../store/Settings.context";
 import { getThemeColors } from "../constants/Theme";
 import TurndownService from "turndown";
@@ -22,11 +21,22 @@ import Header from "../components/Header";
 import ContextMenu from "../components/contextMenu";
 
 import favNote from "../services/notebook/getFavNotes.services";
-import readNote from "../services/notebook/readNote.services";
 import renameNotes from "../services/notebook/renameNote.services";
 import deleteNote from "../services/notebook/deleteNote.services";
 import exportPdf from "../services/notebook/downloadPDFNote";
 import pinNote from "../services/notebook/pinNote.services";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 import { generateHTML } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -39,8 +49,11 @@ import TextAlign from "@tiptap/extension-text-align";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Underline from "@tiptap/extension-underline";
 
+// shadcn components ke default rounded ko inline override karne ke liye
+const SHARP = { borderRadius: 0 };
+
 export default function FavNote() {
-  const turndown = new TurndownService();
+  const turndown = useMemo(() => new TurndownService(), []);
   const [newTitle, setNewTitle] = useState("");
   const { settings } = useContext(SettingsContext);
 
@@ -54,6 +67,17 @@ export default function FavNote() {
   const [menu, setMenu] = useState({ visible: false, x: 0, y: 0 });
   const [selectedNote, setSelectedNote] = useState(null);
   const [renameOpen, setRenameOpen] = useState(false);
+
+  const getNotes = useCallback(async () => {
+    const data = await favNote();
+    setNotes(data || []);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("note-updated", getNotes);
+    getNotes();
+    return () => window.removeEventListener("note-updated", getNotes);
+  }, [getNotes]);
 
   const items = [
     {
@@ -175,8 +199,7 @@ export default function FavNote() {
     if (!selectedNote) return;
     await renameNotes({ id: selectedNote.id, title: newTitle });
     setRenameOpen(false);
-    const notes = await readNote();
-    setNotes(notes);
+    await getNotes();
     window.dispatchEvent(new Event("note-updated"));
   };
 
@@ -184,16 +207,6 @@ export default function FavNote() {
     e.preventDefault();
     setSelectedNote(note);
     setMenu({ visible: true, x: e.clientX, y: e.clientY });
-  };
-
-  useEffect(() => {
-    window.addEventListener("note-updated", getNotes);
-    getNotes();
-  }, []);
-
-  const getNotes = async () => {
-    const data = await favNote();
-    setNotes(data || []);
   };
 
   const getPreview = (content) => {
@@ -221,6 +234,57 @@ export default function FavNote() {
     return updated.toLocaleDateString();
   };
 
+  const S = useMemo(
+    () => ({
+      iconBox: { ...SHARP, backgroundColor: COLORS.bgHover },
+      starBox: {
+        ...SHARP,
+        backgroundColor: `${COLORS.accent}1a`,
+        border: `1px solid ${COLORS.accent}33`,
+      },
+      dialog: {
+        ...SHARP,
+        backgroundColor: COLORS.bgSecondary,
+        border: `1px solid ${COLORS.border}`,
+        color: COLORS.textPrimary,
+      },
+      input: {
+        ...SHARP,
+        backgroundColor: COLORS.bgHover,
+        border: `1px solid ${COLORS.border}`,
+        color: COLORS.textPrimary,
+      },
+      cancelBtn: {
+        ...SHARP,
+        backgroundColor: COLORS.bgHover,
+        color: COLORS.textMuted,
+      },
+      accentBtn: {
+        ...SHARP,
+        backgroundColor: COLORS.accent,
+        color: "#fff",
+      },
+    }),
+    [COLORS],
+  );
+
+  const cardStyle = {
+    ...SHARP,
+    backgroundColor: COLORS.bgSecondary,
+    border: `1px solid ${COLORS.border}`,
+  };
+
+  const cardEnter = (withShadow) => (e) => {
+    e.currentTarget.style.borderColor = COLORS.accent;
+    e.currentTarget.style.backgroundColor = COLORS.bgHover;
+    if (withShadow) e.currentTarget.style.boxShadow = `0 0 30px ${COLORS.accent}26`;
+  };
+  const cardLeave = (withShadow) => (e) => {
+    e.currentTarget.style.borderColor = COLORS.border;
+    e.currentTarget.style.backgroundColor = COLORS.bgSecondary;
+    if (withShadow) e.currentTarget.style.boxShadow = "none";
+  };
+
   return (
     <div
       className="h-full overflow-y-auto"
@@ -233,7 +297,7 @@ export default function FavNote() {
           <div className="h-[70vh] flex items-center justify-center">
             <div className="text-center max-w-md">
               <div
-                className="mx-auto h-28 w-28 rounded-full flex items-center justify-center"
+                className="mx-auto h-28 w-28 flex items-center justify-center"
                 style={{
                   backgroundColor: COLORS.bgSecondary,
                   border: `1px solid ${COLORS.border}`,
@@ -262,147 +326,47 @@ export default function FavNote() {
             </div>
           </div>
         ) : (
-          <div className="grid  gap-5">
+          <div className="grid gap-5">
             {settings.default_view === "list" ? (
               <div className="flex flex-col gap-2">
                 {notes.map((note) => (
-                  <div
+                  <Card
                     key={note.id}
                     onContextMenu={(e) => handleContextMenu(e, note)}
                     onClick={() => navigate(`/read/note/${note.id}`)}
-                    className="group flex items-center gap-4 rounded-2xl px-4 py-3 cursor-pointer transition-all duration-200"
-                    style={{
-                      backgroundColor: COLORS.bgSecondary,
-                      border: `1px solid ${COLORS.border}`,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = COLORS.accent;
-                      e.currentTarget.style.backgroundColor = COLORS.bgHover;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = COLORS.border;
-                      e.currentTarget.style.backgroundColor =
-                        COLORS.bgSecondary;
-                    }}
+                    className="group gap-0 py-0 shadow-none cursor-pointer transition-all duration-200"
+                    style={cardStyle}
+                    onMouseEnter={cardEnter(false)}
+                    onMouseLeave={cardLeave(false)}
                   >
-                    <div
-                      className="h-9 w-9 shrink-0 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: COLORS.bgHover }}
-                    >
-                      <FileText size={16} style={{ color: COLORS.textMuted }} />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <h2
-                        className="font-semibold text-sm truncate"
-                        style={{ color: COLORS.textPrimary }}
-                      >
-                        {note.title || "Untitled Note"}
-                      </h2>
-                      <p
-                        className="text-xs truncate"
-                        style={{ color: COLORS.textMuted }}
-                      >
-                        {getPreview(note.content)}
-                      </p>
-                    </div>
-
-                    <div
-                      className="flex items-center gap-2 text-xs shrink-0"
-                      style={{ color: COLORS.textSubtle }}
-                    >
-                      <Clock3 size={13} />
-                      <span>{formatDate(note.updated_at)}</span>
-                    </div>
-
-                    <div
-                      className="h-7 w-7 shrink-0 rounded-lg flex items-center justify-center"
-                      style={{
-                        backgroundColor: `${COLORS.accent}1a`,
-                        border: `1px solid ${COLORS.accent}33`,
-                      }}
-                    >
-                      <Star
-                        size={12}
-                        style={{ fill: COLORS.accent, color: COLORS.accent }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {notes.map((note) => (
-                  <div
-                    key={note.id}
-                    onContextMenu={(e) => handleContextMenu(e, note)}
-                    onClick={() => navigate(`/read/note/${note.id}`)}
-                    className="group rounded-3xl p-5 cursor-pointer transition-all duration-200 hover:-translate-y-1"
-                    style={{
-                      backgroundColor: COLORS.bgSecondary,
-                      border: `1px solid ${COLORS.border}`,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = COLORS.accent;
-                      e.currentTarget.style.backgroundColor = COLORS.bgHover;
-                      e.currentTarget.style.boxShadow = `0 0 30px ${COLORS.accent}26`;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = COLORS.border;
-                      e.currentTarget.style.backgroundColor =
-                        COLORS.bgSecondary;
-                      e.currentTarget.style.boxShadow = "none";
-                    }}
-                  >
-                    {/* Card header */}
-                    <div className="flex items-start justify-between mb-4">
+                    <CardContent className="flex items-center gap-4 px-4 py-3">
                       <div
-                        className="h-10 w-10 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: COLORS.bgHover }}
+                        className="h-9 w-9 shrink-0 flex items-center justify-center"
+                        style={S.iconBox}
                       >
                         <FileText
-                          size={18}
+                          size={16}
                           style={{ color: COLORS.textMuted }}
                         />
                       </div>
 
-                      <div
-                        className="h-8 w-8 rounded-lg flex items-center justify-center"
-                        style={{
-                          backgroundColor: `${COLORS.accent}1a`,
-                          border: `1px solid ${COLORS.accent}33`,
-                        }}
-                      >
-                        <Star
-                          size={14}
-                          style={{ fill: COLORS.accent, color: COLORS.accent }}
-                        />
+                      <div className="flex-1 min-w-0">
+                        <h2
+                          className="font-semibold text-sm truncate"
+                          style={{ color: COLORS.textPrimary }}
+                        >
+                          {note.title || "Untitled Note"}
+                        </h2>
+                        <p
+                          className="text-xs truncate"
+                          style={{ color: COLORS.textMuted }}
+                        >
+                          {getPreview(note.content)}
+                        </p>
                       </div>
-                    </div>
 
-                    {/* Title */}
-                    <h2
-                      className="font-semibold text-sm line-clamp-2 mb-3"
-                      style={{ color: COLORS.textPrimary }}
-                    >
-                      {note.title || "Untitled Note"}
-                    </h2>
-
-                    {/* Preview */}
-                    <p
-                      className="text-xs leading-relaxed line-clamp-4 min-h-[80px]"
-                      style={{ color: COLORS.textMuted }}
-                    >
-                      {getPreview(note.content)}
-                    </p>
-
-                    {/* Footer */}
-                    <div
-                      className="mt-5 pt-4 flex items-center justify-between"
-                      style={{ borderTop: `1px solid ${COLORS.border}` }}
-                    >
                       <div
-                        className="flex items-center gap-2 text-xs"
+                        className="flex items-center gap-2 text-xs shrink-0"
                         style={{ color: COLORS.textSubtle }}
                       >
                         <Clock3 size={13} />
@@ -410,13 +374,95 @@ export default function FavNote() {
                       </div>
 
                       <div
-                        className="text-xs font-medium opacity-0 translate-x-2 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0"
-                        style={{ color: COLORS.accent }}
+                        className="h-7 w-7 shrink-0 flex items-center justify-center"
+                        style={S.starBox}
                       >
-                        Open →
+                        <Star
+                          size={12}
+                          style={{ fill: COLORS.accent, color: COLORS.accent }}
+                        />
                       </div>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {notes.map((note) => (
+                  <Card
+                    key={note.id}
+                    onContextMenu={(e) => handleContextMenu(e, note)}
+                    onClick={() => navigate(`/read/note/${note.id}`)}
+                    className="group gap-0 py-0 shadow-none cursor-pointer transition-all duration-200 hover:-translate-y-1"
+                    style={cardStyle}
+                    onMouseEnter={cardEnter(true)}
+                    onMouseLeave={cardLeave(true)}
+                  >
+                    <CardContent className="p-5">
+                      {/* Card header */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div
+                          className="h-10 w-10 flex items-center justify-center"
+                          style={S.iconBox}
+                        >
+                          <FileText
+                            size={18}
+                            style={{ color: COLORS.textMuted }}
+                          />
+                        </div>
+
+                        <div
+                          className="h-8 w-8 flex items-center justify-center"
+                          style={S.starBox}
+                        >
+                          <Star
+                            size={14}
+                            style={{
+                              fill: COLORS.accent,
+                              color: COLORS.accent,
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Title */}
+                      <h2
+                        className="font-semibold text-sm line-clamp-2 mb-3"
+                        style={{ color: COLORS.textPrimary }}
+                      >
+                        {note.title || "Untitled Note"}
+                      </h2>
+
+                      {/* Preview */}
+                      <p
+                        className="text-xs leading-relaxed line-clamp-4 min-h-[80px]"
+                        style={{ color: COLORS.textMuted }}
+                      >
+                        {getPreview(note.content)}
+                      </p>
+
+                      {/* Footer */}
+                      <div
+                        className="mt-5 pt-4 flex items-center justify-between"
+                        style={{ borderTop: `1px solid ${COLORS.border}` }}
+                      >
+                        <div
+                          className="flex items-center gap-2 text-xs"
+                          style={{ color: COLORS.textMuted }}
+                        >
+                          <Clock3 size={13} />
+                          <span>{formatDate(note.updated_at)}</span>
+                        </div>
+
+                        <div
+                          className="text-xs font-medium opacity-0 translate-x-2 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0"
+                          style={{ color: COLORS.accent }}
+                        >
+                          Open →
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             )}
@@ -424,84 +470,73 @@ export default function FavNote() {
         )}
       </div>
 
-      {/* ── Rename modal ── */}
-      {renameOpen && (
-        <div
-          className="fixed inset-0 flex items-center justify-center z-50"
-          style={{
-            backgroundColor: "rgba(0,0,0,0.7)",
-            backdropFilter: "blur(4px)",
-          }}
-        >
-          <div
-            className="rounded-2xl p-5 w-80 shadow-2xl"
-            style={{
-              backgroundColor: COLORS.bgSecondary,
-              border: `1px solid ${COLORS.border}`,
-            }}
-          >
-            <h2
-              className="text-sm font-semibold mb-1"
+      {/* Rename dialog */}
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent className="w-80 max-w-[90vw] p-5 gap-0" style={S.dialog}>
+          <DialogHeader className="mb-4 gap-1">
+            <DialogTitle
+              className="text-sm font-semibold"
               style={{ color: COLORS.textPrimary }}
             >
               Rename note
-            </h2>
-            <p className="text-xs mb-4" style={{ color: COLORS.textSubtle }}>
+            </DialogTitle>
+            <DialogDescription
+              className="text-xs"
+              style={{ color: COLORS.textSubtle }}
+            >
               Enter a new title for this note.
-            </p>
-            <input
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleRename()}
-              autoFocus
-              className="w-full px-3 py-2 text-sm rounded-lg outline-none transition-colors"
-              style={{
-                backgroundColor: COLORS.bgHover,
-                border: `1px solid ${COLORS.border}`,
-                color: COLORS.textPrimary,
-              }}
-              onFocus={(e) =>
-                (e.currentTarget.style.borderColor = `${COLORS.accent}80`)
+            </DialogDescription>
+          </DialogHeader>
+
+          <Input
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleRename()}
+            autoFocus
+            className="text-sm"
+            style={S.input}
+            onFocus={(e) =>
+              (e.currentTarget.style.borderColor = `${COLORS.accent}80`)
+            }
+            onBlur={(e) => (e.currentTarget.style.borderColor = COLORS.border)}
+            placeholder="Note title"
+          />
+
+          <DialogFooter className="flex-row justify-end gap-2 mt-4">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setRenameOpen(false)}
+              className="h-8 px-3 text-xs"
+              style={S.cancelBtn}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.color = COLORS.textPrimary)
               }
-              onBlur={(e) =>
-                (e.currentTarget.style.borderColor = COLORS.border)
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.color = COLORS.textMuted)
               }
-              placeholder="Note title"
-            />
-            <div className="flex justify-end gap-2 mt-4">
-              <button
-                onClick={() => setRenameOpen(false)}
-                className="px-3 py-1.5 text-xs rounded-lg transition-colors"
-                style={{
-                  backgroundColor: COLORS.bgHover,
-                  color: COLORS.textMuted,
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.color = COLORS.textPrimary)
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.color = COLORS.textMuted)
-                }
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRename}
-                className="px-3 py-1.5 text-xs rounded-lg font-medium text-white transition-colors"
-                style={{ backgroundColor: COLORS.accent }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.filter = "brightness(1.1)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.filter = "brightness(1)")
-                }
-              >
-                Rename
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleRename}
+              className="h-8 px-3 text-xs font-medium"
+              style={S.accentBtn}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.filter = "brightness(1.1)")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.filter = "brightness(1)")
+              }
+            >
+              Rename
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ContextMenu
         {...menu}

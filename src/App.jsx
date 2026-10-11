@@ -6,7 +6,7 @@ import {
   useLocation,
 } from "react-router-dom";
 
-import { useContext, useEffect, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import Sidebar from "./components/Sidebar";
 
@@ -130,15 +130,12 @@ function App() {
     const runSync = async () => {
       try {
         console.log("Syncing notes...");
-
         const result = await cloudSync();
-
         console.log("Sync completed:", result);
       } catch (error) {
         console.error("Cloud sync failed:", error);
       }
     };
-
     void runSync();
   }, []);
 
@@ -150,17 +147,29 @@ function App() {
   );
 
   const fontSize = useMemo(() => settings.font_size, [settings.font_size]);
-
   const wordWrap = useMemo(() => settings.word_wrap, [settings.word_wrap]);
-
   useEffect(() => {
     document.body.setAttribute("data-font-size", fontSize);
-
     document.body.setAttribute(
       "data-word-wrap",
       Boolean(Number(wordWrap)).toString(),
     );
   }, [fontSize, wordWrap]);
+
+  const [syncStatus, setSyncStatus] = useState(null);
+  const handleSync = useCallback(() => {
+    async () => {
+      try {
+        await cloudSync(setSyncStatus);
+        console.log(syncStatus);
+      } catch (error) {
+        console.error("Cloud sync failed:", error);
+      }
+    };
+  }, [syncStatus]);
+  useEffect(() => {
+    handleSync();
+  }, [handleSync, syncStatus]);
 
   return (
     <HashRouter>

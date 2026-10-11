@@ -199,6 +199,7 @@ export default function useNotebookCRUD({
 
       isSavingRef.current = true;
 
+      // eslint-disable-next-line no-useless-assignment
       let savedVersion = editVersionRef.current;
 
       try {

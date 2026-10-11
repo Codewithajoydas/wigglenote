@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { getThemeColors } from "@/constants/Theme";
 import { SettingsContext } from "@/store/Settings.context";
+import Header from "@/components/Header";
 
 export default function ProfilePage() {
     const { settings } = useContext(SettingsContext);
@@ -123,17 +124,9 @@ export default function ProfilePage() {
       .join("") || "U";
 
   return (
+    <>
+    <Header title="Profile" />
     <main className="container mx-auto max-w-3xl px-4 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">
-          My Profile
-        </h1>
-
-        <p className="mt-2 text-sm text-muted-foreground">
-          Manage your account information and security.
-        </p>
-      </div>
-
       <Card style={{ backgroundColor: COLORS.bgSecondary, color: COLORS.textPrimary }}>
         <CardHeader>
           <div className="flex items-center gap-4">
@@ -252,5 +245,6 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
     </main>
+    </>
   );
 }

@@ -81,7 +81,7 @@ export function registerNoteHandlers() {
 
   /* ── GET ALL UNSYNCED NOTES ──────────────────────────────────────────────────────────────── */
   ipcMain.handle("get-all-unsynced-notes", () => {
-    return db.prepare(`SELECT * FROM notes WHERE synced = 0`).all();
+    return db.prepare(`SELECT * FROM notes WHERE synced = 0 AND is_deleted = 0`).all();
   });
 
   /* ── UPDATE ALL UNSYNCED NOTES ──────────────────────────────────────────────────────────────── */

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useContext, useMemo } from "react";
 import { EditorContent } from "@tiptap/react";
-import CreateFab from "../components/createFab";
 import Toolbar from "../components/Toolbar";
 import useTiptapEditor from "../hook/useEditor";
 import useNotebookCRUD from "../hook/useNotebookCRUD";
@@ -11,6 +10,8 @@ import { getThemeColors } from "../constants/Theme";
 import { useSearchParams } from "react-router-dom";
 import { templates } from "../../public/templates";
 import { marked } from "marked";
+import { Button } from "@/components/ui/button";
+import { Pen } from "lucide-react";
 
 const loadTemplates = (id) => {
   const response = templates.find((template) => template.id === id);
@@ -180,6 +181,15 @@ useEffect(() => {
 
         <div className="flex-1">
           <div className="max-w-3xl mx-auto">
+            <>
+              <style>
+    {`
+      .tiptap ::selection {
+        background-color: ${COLORS.accent}cc;
+        color: ${COLORS.textPrimary};
+      }
+    `}
+  </style>
             <EditorContent
               style={{
                 overflowX: "auto",
@@ -187,7 +197,7 @@ useEffect(() => {
               editor={editor}
               spellCheck
               className="px-8 py-6 focus:outline-none"
-            />
+            /></>
           </div>
         </div>
       </div>
@@ -199,8 +209,11 @@ useEffect(() => {
         className="hidden"
         onChange={handleImageUpload}
       />
-      <CreateFab title="save" onClick={create} />
-      
+      {/* <CreateFab title="save" onClick={create} /> */}
+      <Button onClick={create} className="fixed bottom-6 right-6 z-50 cursor-pointer" style={{ backgroundColor: COLORS.accent, color: COLORS.bgPrimary }}>
+        <Pen size={24}/>
+        Save Note
+      </Button>
     </div>
   );
 }

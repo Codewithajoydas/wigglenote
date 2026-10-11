@@ -15,6 +15,10 @@ import { SettingsContext } from "../store/Settings.context";
 import { getThemeColors } from "../constants/Theme";
 import Header from "../components/Header";
 import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 const CAT_COLORS = {
   Personal: "#818cf8",
@@ -36,6 +40,9 @@ function catColor(cat) {
   return CAT_COLORS[cat] || "#71717a";
 }
 
+// shadcn components ke default rounded ko inline override karne ke liye
+const SHARP = { borderRadius: 0 };
+
 export default function Templates() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -48,8 +55,6 @@ export default function Templates() {
     [settings.theme, settings.accent_color],
   );
 
-  // Respect a stored view preference if the app tracks one (e.g. settings.default_view),
-  // otherwise default to grid.
   const [view, setView] = useState(
     settings?.default_view === "list" ? "list" : "grid",
   ); // "grid" | "list"
@@ -74,6 +79,44 @@ export default function Templates() {
     setTimeout(() => setCopiedId((id) => (id === t.id ? null : id)), 1500);
   };
 
+  const useTemplate = (t) => navigate(`/create-note?id=${t.id}`);
+
+  const S = useMemo(
+    () => ({
+      accentBtn: {
+        ...SHARP,
+        backgroundColor: COLORS.accent,
+        color: "#fff",
+      },
+      ghostBtn: {
+        ...SHARP,
+        backgroundColor: "transparent",
+        border: `1px solid ${COLORS.border}`,
+        color: COLORS.textMuted,
+      },
+      badge: (cat) => ({
+        ...SHARP,
+        backgroundColor: `${catColor(cat)}22`,
+        color: catColor(cat),
+        border: `1px solid ${catColor(cat)}44`,
+      }),
+    }),
+    [COLORS],
+  );
+
+  const accentHover = (e) =>
+    (e.currentTarget.style.backgroundColor = COLORS.accentHover);
+  const accentLeave = (e) =>
+    (e.currentTarget.style.backgroundColor = COLORS.accent);
+  const ghostHover = (e) => {
+    e.currentTarget.style.backgroundColor = COLORS.bgHover;
+    e.currentTarget.style.color = COLORS.textPrimary;
+  };
+  const ghostLeave = (e) => {
+    e.currentTarget.style.backgroundColor = "transparent";
+    e.currentTarget.style.color = COLORS.textMuted;
+  };
+
   return (
     <div
       className="h-screen flex flex-col overflow-hidden"
@@ -82,38 +125,46 @@ export default function Templates() {
       <Header title="Templates">
         {/* View toggle */}
         <div
-          className="flex items-center rounded-lg p-0.5"
+          className="flex items-center p-0.5"
           style={{
             backgroundColor: COLORS.bgHover,
             border: `1px solid ${COLORS.border}`,
           }}
         >
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => setView("grid")}
             aria-label="Grid view"
-            className="p-1.5 rounded-md transition-colors"
+            className="size-7"
             style={{
+              ...SHARP,
               backgroundColor: view === "grid" ? COLORS.accent : "transparent",
               color: view === "grid" ? "#fff" : COLORS.textMuted,
             }}
           >
             <LayoutGrid size={15} />
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => setView("list")}
             aria-label="List view"
-            className="p-1.5 rounded-md transition-colors"
+            className="size-7"
             style={{
+              ...SHARP,
               backgroundColor: view === "list" ? COLORS.accent : "transparent",
               color: view === "list" ? "#fff" : COLORS.textMuted,
             }}
           >
             <List size={15} />
-          </button>
+          </Button>
         </div>
       </Header>
 
-      {/* ── Filter bar: search + categories ───────────────────── */}
+      {/* Filter bar: search + categories */}
       <div
         className="px-6 py-3 border-b flex flex-wrap items-center gap-3 flex-shrink-0"
         style={{ borderColor: COLORS.border }}
@@ -121,15 +172,16 @@ export default function Templates() {
         <div className="relative w-64">
           <Search
             size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2"
+            className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
             style={{ color: COLORS.textMuted }}
           />
-          <input
+          <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search templates..."
-            className="w-full rounded-xl pl-9 pr-3 py-2 text-sm outline-none transition-colors"
+            className="pl-9 text-sm"
             style={{
+              ...SHARP,
               backgroundColor: COLORS.bgSecondary,
               border: `1px solid ${COLORS.border}`,
               color: COLORS.textPrimary,
@@ -141,18 +193,22 @@ export default function Templates() {
           {ALL_CATEGORIES.map((cat) => {
             const active = activeCategory === cat;
             return (
-              <button
+              <Button
                 key={cat}
+                type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setActiveCategory(cat)}
-                className="text-xs px-2.5 py-1 rounded-lg border transition-all"
+                className="h-7 px-2.5 text-xs"
                 style={{
+                  ...SHARP,
                   backgroundColor: active ? COLORS.accent : "transparent",
                   borderColor: active ? COLORS.accent : COLORS.border,
                   color: active ? "#fff" : COLORS.textSecondary,
                 }}
               >
                 {cat}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -162,7 +218,7 @@ export default function Templates() {
         </span>
       </div>
 
-      {/* ── Content ────────────────────────────────────────────── */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -184,10 +240,11 @@ export default function Templates() {
         ) : view === "grid" ? (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
             {filtered.map((t) => (
-              <div
+              <Card
                 key={t.id}
-                className="flex flex-col rounded-2xl overflow-hidden transition-colors"
+                className="gap-0 py-0 overflow-hidden shadow-none"
                 style={{
+                  ...SHARP,
                   backgroundColor: COLORS.bgSecondary,
                   border: `1px solid ${COLORS.border}`,
                 }}
@@ -214,18 +271,15 @@ export default function Templates() {
                   )}
                 </div>
 
-                <div className="flex flex-col flex-1 p-5">
-                  <span
-                    className="self-start inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg mb-3"
-                    style={{
-                      background: `${catColor(t.category)}22`,
-                      color: catColor(t.category),
-                      border: `1px solid ${catColor(t.category)}44`,
-                    }}
+                <CardContent className="flex flex-col flex-1 p-5">
+                  <Badge
+                    variant="outline"
+                    className="self-start gap-1.5 text-xs font-medium px-2.5 py-1 mb-3"
+                    style={S.badge(t.category)}
                   >
                     <Tag size={11} />
                     {t.category}
-                  </span>
+                  </Badge>
 
                   <p
                     className="text-sm font-medium truncate"
@@ -241,52 +295,45 @@ export default function Templates() {
                   </p>
 
                   <div className="flex gap-2 mt-4">
-                    <button
-                      onClick={() => navigate(`/create-note?id=${t.id}`)}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
-                      style={{ backgroundColor: COLORS.accent, color: "#fff" }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor =
-                          COLORS.accentHover)
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.backgroundColor = COLORS.accent)
-                      }
+                    <Button
+                      type="button"
+                      size="sm"
+                      // eslint-disable-next-line react-hooks/rules-of-hooks
+                      onClick={() => useTemplate(t)}
+                      className="flex-1 gap-1.5 text-xs font-medium"
+                      style={S.accentBtn}
+                      onMouseEnter={accentHover}
+                      onMouseLeave={accentLeave}
                     >
                       <LayoutTemplate size={13} />
                       Use Template
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleCopy(t)}
-                      className="flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs transition-colors"
-                      style={{
-                        border: `1px solid ${COLORS.border}`,
-                        color: COLORS.textMuted,
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = COLORS.bgHover;
-                        e.currentTarget.style.color = COLORS.textPrimary;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "transparent";
-                        e.currentTarget.style.color = COLORS.textMuted;
-                      }}
+                      aria-label="Copy template"
+                      className="gap-1.5 text-xs"
+                      style={S.ghostBtn}
+                      onMouseEnter={ghostHover}
+                      onMouseLeave={ghostLeave}
                     >
                       {copiedId === t.id ? (
                         <Check size={13} className="text-green-400" />
                       ) : (
                         <Copy size={13} />
                       )}
-                    </button>
+                    </Button>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         ) : (
           <div
-            className="flex flex-col rounded-2xl overflow-hidden"
-            style={{ border: `1px solid ${COLORS.border}` }}
+            className="flex flex-col overflow-hidden"
+            style={{ ...SHARP, border: `1px solid ${COLORS.border}` }}
           >
             {filtered.map((t, i) => (
               <div
@@ -305,7 +352,7 @@ export default function Templates() {
               >
                 {/* Cover thumbnail */}
                 <div
-                  className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0"
+                  className="w-10 h-10 overflow-hidden flex-shrink-0"
                   style={{ backgroundColor: COLORS.bgHover }}
                 >
                   {t.cover ? (
@@ -326,7 +373,7 @@ export default function Templates() {
                 </div>
 
                 <div
-                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  className="w-2 h-2 flex-shrink-0"
                   style={{ background: catColor(t.category) }}
                 />
 
@@ -345,48 +392,38 @@ export default function Templates() {
                   </p>
                 </div>
 
-                <span
-                  className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg flex-shrink-0"
-                  style={{
-                    background: `${catColor(t.category)}22`,
-                    color: catColor(t.category),
-                    border: `1px solid ${catColor(t.category)}44`,
-                  }}
+                <Badge
+                  variant="outline"
+                  className="hidden sm:inline-flex gap-1.5 text-xs font-medium px-2.5 py-1 flex-shrink-0"
+                  style={S.badge(t.category)}
                 >
                   <Tag size={11} />
                   {t.category}
-                </span>
+                </Badge>
 
                 <div className="flex gap-2 flex-shrink-0">
-                  <button
-                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
-                    style={{ backgroundColor: COLORS.accent, color: "#fff" }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.backgroundColor =
-                        COLORS.accentHover)
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.backgroundColor = COLORS.accent)
-                    }
+                  <Button
+                    type="button"
+                    size="sm"
+                    // eslint-disable-next-line react-hooks/rules-of-hooks
+                    onClick={() => useTemplate(t)}
+                    className="gap-1.5 text-xs font-medium"
+                    style={S.accentBtn}
+                    onMouseEnter={accentHover}
+                    onMouseLeave={accentLeave}
                   >
                     <LayoutTemplate size={13} />
                     Use Template
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleCopy(t)}
-                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs transition-colors"
-                    style={{
-                      border: `1px solid ${COLORS.border}`,
-                      color: COLORS.textMuted,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = COLORS.bgHover;
-                      e.currentTarget.style.color = COLORS.textPrimary;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                      e.currentTarget.style.color = COLORS.textMuted;
-                    }}
+                    className="gap-1.5 text-xs"
+                    style={S.ghostBtn}
+                    onMouseEnter={ghostHover}
+                    onMouseLeave={ghostLeave}
                   >
                     {copiedId === t.id ? (
                       <>
@@ -399,7 +436,7 @@ export default function Templates() {
                         Copy
                       </>
                     )}
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}

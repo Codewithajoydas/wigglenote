@@ -1,4 +1,4 @@
-import { useCallback, useContext, useMemo } from "react";
+import { useCallback, useContext, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ToolbarButton from "./ui/toolbarButton";
 import { CoverPanel } from "./CoverPanel";
@@ -37,6 +37,7 @@ import Divider from "./ui/Divider";
 import { SettingsContext } from "../store/Settings.context";
 import { getThemeColors } from "../constants/Theme";
 import { toast } from "./ui/toast";
+import { Button } from "./ui/button";
 /**
  * @function Toolbar
  * @description A toolbar for editing notes
@@ -111,6 +112,16 @@ export default function Toolbar({
     [settings.theme, settings.accent_color],
   );
 
+  const toolbarRef = useRef(null);
+
+  const handleWheel = (e) => {
+    const element = toolbarRef.current;
+    if (!element) return;
+
+    if (element.scrollWidth > element.clientWidth) {
+      element.scrollLeft += e.deltaY;
+    }
+  };
   return (
     <div
       className="sticky top-0 z-50  backdrop-blur-xl border-b "
@@ -121,33 +132,16 @@ export default function Toolbar({
     >
       {/* Top row: title + meta actions */}
       <div className="flex items-center gap-2 px-4 pt-3 pb-1 pr-[150px]">
-        <button
+        <Button
+        variant="ghost"
           onClick={() => navigate(-1)}
-          className="
-                       h-9
-                       w-9
-                       rounded-xl
-                       flex
-                       items-center
-                       justify-center
-                       transition-all
-                       duration-200
-                     "
-          title="Go back"
           style={{
             color: COLORS.textPrimary,
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = COLORS.bgHover;
-            e.currentTarget.style.color = COLORS.accent;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "transparent";
-            e.currentTarget.style.color = COLORS.textPrimary;
-          }}
         >
           <ArrowLeft size={18} />
-        </button>
+          back
+        </Button>
         <input
           type="text"
           value={title}
@@ -204,7 +198,11 @@ export default function Toolbar({
       </div>
 
       {/* Bottom row: formatting toolbar */}
-      <div className="flex items-center gap-0.5 px-3 pb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+      <div
+        className="flex items-center gap-0.5 px-3 pb-2 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+        ref={toolbarRef}
+        onWheel={handleWheel}
+      >
         {/* History */}
         <ToolbarButton
           label="Undo"
@@ -351,7 +349,7 @@ export default function Toolbar({
           active={editor.isActive("codeBlock")}
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
         >
-        <Code2 size={15} />
+          <Code2 size={15} />
         </ToolbarButton>
         <ToolbarButton
           label="Rule"

@@ -77,15 +77,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-// ─── Font size map ────────────────────────────────────────────────────────────
+
 const FONT_SIZE_MAP = {
   small: "text-sm",
   medium: "text-base",
   large: "text-lg",
 };
 
-// StarterKit v3 mein Link, Underline, HorizontalRule already included hain,
-// isliye alag se add nahi kiye (duplicate warning isi se aa rahi thi).
+
+
 const EXPORT_EXTENSIONS = [
   StarterKit.configure({
     heading: { levels: [1, 2, 3] },
@@ -98,7 +98,7 @@ const EXPORT_EXTENSIONS = [
   TextAlign.configure({ types: ["heading", "paragraph"] }),
 ];
 
-// Tooltip + button ek hi jagah, taaki <button> ke andar <button> na bane
+
 function HeaderAction({ label, onClick, active, danger, children, COLORS }) {
   const restColor = active ? COLORS.accentText : COLORS.textMuted;
   const restBg = active ? `${COLORS.accent}18` : "transparent";
@@ -211,7 +211,7 @@ export default function ReadNote() {
   }, [id, navigate]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    
     loadNote();
     window.addEventListener("note-updated", loadNote);
     return () => window.removeEventListener("note-updated", loadNote);
@@ -230,9 +230,9 @@ export default function ReadNote() {
     if (editor && note) editor.commands.setContent(content);
   }, [editor, note, content]);
 
-  // ─── Actions ───────────────────────────────────────────────────────────────
-  // Context menu band hone ke baad focus trigger pe wapas jaata hai,
-  // isliye dialogs ko ek tick baad kholte hain
+  
+  
+  
   const handleDelete = () => setTimeout(() => setDeleteOpen(true), 0);
 
   const confirmDelete = async () => {
@@ -263,7 +263,7 @@ export default function ReadNote() {
     try {
       await renameNotes({ id: note.id, title });
       setRenameOpen(false);
-      window.dispatchEvent(new CustomEvent("note-updated")); // loadNote + Sidebar dono refresh
+      window.dispatchEvent(new CustomEvent("note-updated")); 
     } catch (error) {
       console.error("Failed to rename note:", error);
     }
@@ -306,7 +306,7 @@ export default function ReadNote() {
     await exportPdf(html, note.title);
   };
 
-  // "..." button se bhi wahi context menu khule (button ki position pe)
+  
   const openMenuFromButton = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     mainRef.current?.dispatchEvent(
@@ -326,7 +326,7 @@ export default function ReadNote() {
     WebkitAppRegion: "no-drag",
   };
 
-  // ─── Loading state ─────────────────────────────────────────────────────────
+  
   if (!editor || !note) {
     return (
       <div
@@ -351,7 +351,7 @@ export default function ReadNote() {
     );
   }
 
-  // ─── Derived style from settings ───────────────────────────────────────────
+  
   const fontSizeClass = FONT_SIZE_MAP[settings.font_size] ?? "text-base";
   const wordWrapClass = settings.word_wrap
     ? "break-words"

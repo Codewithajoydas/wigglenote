@@ -66,7 +66,7 @@ export default function SearchBar({ open, onClose }) {
     [settings.theme, settings.accent_color],
   );
 
-  // Load notes whenever the search dialog opens.
+  
   useEffect(() => {
     if (!open) return;
 
@@ -102,7 +102,7 @@ export default function SearchBar({ open, onClose }) {
     };
   }, [open]);
 
-  // Reset the search query when the dialog closes.
+  
   useEffect(() => {
     if (!open) {
       setQuery("");
@@ -110,7 +110,7 @@ export default function SearchBar({ open, onClose }) {
     }
   }, [open]);
 
-  // Search note titles and content.
+  
   const filteredNotes = useMemo(() => {
     const search = query.trim().toLowerCase();
 
@@ -126,7 +126,7 @@ export default function SearchBar({ open, onClose }) {
     });
   }, [notes, query]);
 
-  // Open a note and close the dialog.
+  
   const handleOpenNote = (noteId) => {
     navigate(`/read/note/${noteId}`);
     onClose();
@@ -270,8 +270,8 @@ export default function SearchBar({ open, onClose }) {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    // Reopen-triggered loading can be initiated by
-                    // closing and opening the dialog again.
+                    
+                    
                     onClose();
                   }}
                 >

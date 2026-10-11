@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-// shadcn components ke default rounded ko inline override karne ke liye
+
 const SHARP = { borderRadius: 0 };
 
 export default function Trash() {

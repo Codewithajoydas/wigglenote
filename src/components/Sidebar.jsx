@@ -65,7 +65,7 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 
-// StarterKit v3 mein Link, Underline, HorizontalRule already included hain
+
 const EXPORT_EXTENSIONS = [
   StarterKit.configure({
     heading: { levels: [1, 2, 3] },
@@ -86,7 +86,7 @@ const MENU_ITEM = "capitalize tracking-normal";
 const IS_MAC =
   typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
 
-// ─── Nav item used for quick actions + collections ────────────────────────────
+
 function SideNavLink({ to, icon, children, colors }) {
   return (
     <NavLink
@@ -100,7 +100,7 @@ function SideNavLink({ to, icon, children, colors }) {
         e.currentTarget.style.backgroundColor = colors.bgHover;
       }}
       onMouseLeave={(e) => {
-        // active link ka bg wapas NavLink ke style se aata hai, isliye class check
+        
         if (!e.currentTarget.classList.contains("active")) {
           e.currentTarget.style.backgroundColor = "transparent";
         }
@@ -132,7 +132,7 @@ function SideNavLink({ to, icon, children, colors }) {
   );
 }
 
-// ─── Section label ─────────────────────────────────────────────────────────────
+
 function SectionLabel({ children, count, colors }) {
   return (
     <div className="flex items-center justify-between px-3 mb-1.5 mt-4 first:mt-0">
@@ -154,7 +154,7 @@ function SectionLabel({ children, count, colors }) {
   );
 }
 
-// ─── One note row + its context menu ──────────────────────────────────────────
+
 function NoteRow({
   note,
   colors,
@@ -168,7 +168,7 @@ function NoteRow({
   onExportPdf,
   onDelete,
 }) {
-  // "..." click pe wahi shadcn context menu khule
+  
   const openMenuFromButton = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -288,7 +288,7 @@ function NoteRow({
   );
 }
 
-// ─── Main Sidebar ─────────────────────────────────────────────────────────────
+
 export default function Sidebar() {
   const turndown = useMemo(() => new TurndownService(), []);
   const navigate = useNavigate();
@@ -299,14 +299,14 @@ export default function Sidebar() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [newTitle, setNewTitle] = useState("");
 
-  // ---THEME------------------------------
+  
   const { settings } = useContext(SettingsContext);
   const COLORS = useMemo(
     () => getThemeColors(settings.theme, settings.accent_color),
     [settings.theme, settings.accent_color],
   );
 
-  // Ctrl+K (Windows/Linux) aur Cmd+K (Mac)
+  
   useEffect(() => {
     const onKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -318,7 +318,7 @@ export default function Sidebar() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // ─── Resize (width yaad rehti hai) ────────────────────────────────────────
+  
   const sidebarRef = useRef(null);
   const isResizing = useRef(false);
   const [sidebarWidth, setSidebarWidth] = useState(() => {
@@ -352,7 +352,7 @@ export default function Sidebar() {
         try {
           localStorage.setItem(WIDTH_KEY, String(w));
         } catch {
-          /* ignore */
+         
         }
         return w;
       });
@@ -365,7 +365,7 @@ export default function Sidebar() {
     };
   }, []);
 
-  // ─── Notes ────────────────────────────────────────────────────────────────
+  
   useEffect(() => {
     const refresh = async () => {
       const data = await readNote();
@@ -376,7 +376,7 @@ export default function Sidebar() {
     return () => window.removeEventListener("note-updated", refresh);
   }, []);
 
-  // ─── Note actions ─────────────────────────────────────────────────────────
+  
   const notify = () => window.dispatchEvent(new Event("note-updated"));
 
   const exportMarkdown = (note) => {
@@ -396,8 +396,8 @@ export default function Sidebar() {
     await exportPdf(html, note.title);
   };
 
-  // Context menu band hone ke baad focus trigger pe wapas jaata hai,
-  // isliye dialogs ko ek tick baad kholte hain
+  
+  
   const handleDelete = (note) => setTimeout(() => setDeleteTarget(note), 0);
 
   const confirmDelete = async () => {
@@ -430,7 +430,7 @@ export default function Sidebar() {
     try {
       await renameNotes({ id: selectedNote.id, title });
       setRenameOpen(false);
-      notify(); // listener notes refresh kar deta hai
+      notify(); 
     } catch (error) {
       console.error("Failed to rename note:", error);
     }

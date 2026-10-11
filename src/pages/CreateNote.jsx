@@ -1,26 +1,43 @@
 import { useEffect, useRef, useState, useContext, useMemo } from "react";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 import { EditorContent } from "@tiptap/react";
+
+import { useSearchParams, useBlocker } from "react-router-dom";
+
 import Toolbar from "../components/Toolbar";
 import useTiptapEditor from "../hook/useEditor";
 import useNotebookCRUD from "../hook/useNotebookCRUD";
 import useNoteImage from "../hook/useNoteImage";
+
 import checkSaved from "../services/notebook/checkSaved";
 import { SettingsContext } from "../store/Settings.context";
 import { getThemeColors } from "../constants/Theme";
-import { useSearchParams } from "react-router-dom";
+
 import { templates } from "../../public/templates";
 import { marked } from "marked";
+
 import { Button } from "@/components/ui/button";
 import { Pen } from "lucide-react";
 
 const loadTemplates = (id) => {
-  const response = templates.find((template) => template.id === id);
-  return response;
+  return templates.find((template) => template.id === id);
 };
 
 export default function CreateNote() {
   const [searchParams] = useSearchParams();
   const id = searchParams.get("id");
+
   const [temLoading, setTemLoading] = useState(false);
   const [noteId, setNoteId] = useState(null);
   const [editable, setEditable] = useState(true);
@@ -28,10 +45,14 @@ export default function CreateNote() {
   const [cover, setCover] = useState(null);
   const [showCoverPanel, setShowCoverPanel] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
   const coverImageInputRef = useRef(null);
   const imageInputRef = useRef(null);
 
   const { settings } = useContext(SettingsContext);
+
   const COLORS = useMemo(
     () => getThemeColors(settings.theme, settings.accent_color),
     [settings.theme, settings.accent_color],
@@ -41,26 +62,62 @@ export default function CreateNote() {
     spellcheck: Boolean(Number(settings?.spell_check)),
   });
 
-  // ---- Load template -------
+  
+  const blocker = useBlocker(isDirty);
+
+  
+
+  useEffect(() => {
+    if (blocker.state === "blocked") {
+      
+      setShowLeaveDialog(true);
+    }
+  }, [blocker.state]);
+
+  const handleLeave = () => {
+    setShowLeaveDialog(false);
+
+    if (blocker.state === "blocked") {
+      blocker.proceed();
+    }
+  };
+
+  const handleStay = () => {
+    setShowLeaveDialog(false);
+
+    if (blocker.state === "blocked") {
+      blocker.reset();
+    }
+  };
+
+
+
+  
   useEffect(() => {
     if (!editor || !id) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
+    
     setTemLoading(true);
-    const template = loadTemplates(id);
-    if (!template) {
+
+    try {
+      const template = loadTemplates(id);
+
+      if (!template) return;
+
+      const html = marked.parse(template.content);
+
+      editor.commands.setContent(html, false);
+      setTitle(template.title);
+
+      if (template.cover) {
+        setCover({
+          type: "image",
+          value: template.cover,
+        });
+      }
+    } finally {
       setTemLoading(false);
-      return;
     }
-    const html = marked.parse(template.content);
-    editor.commands.setContent(html, false);
-    setTitle(template.title);
-    if (template.cover) {
-      setCover({
-        type: "image",
-        value: template.cover,
-      });
-    }
-    setTemLoading(false);
   }, [editor, id]);
 
   const { create, title_a } = useNotebookCRUD({
@@ -72,45 +129,66 @@ export default function CreateNote() {
     setSaved,
   });
 
-useEffect(() => {
-  if (!editor || temLoading) return;
+  
+  useEffect(() => {
+    if (!editor) return;
 
-  const handleKeyboard = (event) => {
-    if (
-      event.ctrlKey ||
-      event.metaKey ||
-      event.altKey ||
-      event.key.length !== 1
-    ) {
-      return;
-    }
+    const handleUpdate = () => {
+      setIsDirty(true);
+      setSaved(false);
+    };
 
-    const target = event.target;
+    editor.on("update", handleUpdate);
 
-    if (
-      target?.closest(
-        'input, textarea, select, [contenteditable="true"], [role="dialog"]'
-      )
-    ) {
-      return;
-    }
+    return () => {
+      editor.off("update", handleUpdate);
+    };
+  }, [editor]);
 
-    editor.commands.focus();
-  };
+  
+  useEffect(() => {
+    if (!editor || temLoading) return;
 
-  window.addEventListener("keydown", handleKeyboard);
+    const handleKeyboard = (event) => {
+      if (
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.key.length !== 1
+      ) {
+        return;
+      }
 
-  return () => {
-    window.removeEventListener("keydown", handleKeyboard);
-  };
-}, [editor, temLoading]);
+      const target = event.target;
+
+      if (
+        target?.closest(
+          'input, textarea, select, [contenteditable="true"], [role="dialog"]',
+        )
+      ) {
+        return;
+      }
+
+      editor.commands.focus();
+    };
+
+    window.addEventListener("keydown", handleKeyboard);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyboard);
+    };
+  }, [editor, temLoading]);
 
   const { handleImageUpload } = useNoteImage({ editor });
 
+  
   useEffect(() => {
-    (async () => {
-      await checkSaved(saved);
-    })();
+    if (saved) {
+      
+      setIsDirty(false);
+    }
+
+    void checkSaved(saved);
   }, [saved]);
 
   if (!editor) return null;
@@ -127,12 +205,10 @@ useEffect(() => {
 
   if (temLoading) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center">
+      <div className="flex h-screen flex-col items-center justify-center">
         <div
-          className="animate-spin rounded-full h-16 w-16 border-b-2"
-          style={{
-            borderColor: COLORS.accent,
-          }}
+          className="h-16 w-16 animate-spin rounded-full border-b-2"
+          style={{ borderColor: COLORS.accent }}
         />
       </div>
     );
@@ -140,16 +216,27 @@ useEffect(() => {
 
   return (
     <div
-      className="h-screen flex flex-col overflow-hidden"
-      style={{ backgroundColor: COLORS.bgPrimary, color: COLORS.textPrimary }}
+      className="flex h-screen flex-col overflow-hidden"
+      style={{
+        backgroundColor: COLORS.bgPrimary,
+        color: COLORS.textPrimary,
+      }}
     >
       <Toolbar
         cover={cover}
         title={title || title_a}
-        setTitle={setTitle}
+        setTitle={(value) => {
+          setTitle(value);
+          setIsDirty(true);
+          setSaved(false);
+        }}
         editable={editable}
         editor={editor}
-        setCover={setCover}
+        setCover={(value) => {
+          setCover(value);
+          setIsDirty(true);
+          setSaved(false);
+        }}
         coverImageInputRef={coverImageInputRef}
         setEditable={setEditable}
         showCoverPanel={showCoverPanel}
@@ -160,16 +247,21 @@ useEffect(() => {
         setSaved={setSaved}
       />
 
-      <div className="editor overflow-y-auto overflow-x-hidden flex-1">
+      <div className="editor flex-1 overflow-x-hidden overflow-y-auto">
         {cover && (
-          <div className="w-full h-50 shrink-0 relative" style={coverStyle}>
+          <div className="relative h-50 w-full shrink-0" style={coverStyle}>
             <input
               placeholder="Enter title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="absolute bottom-12.5 text-center truncate capitalize bg-transparent z-1 text-[40px] outline-0 font-bold flex-1 w-full filter drop-shadow-sm title px-10 inset-x-0"
+              onChange={(event) => {
+                setTitle(event.target.value);
+                setIsDirty(true);
+                setSaved(false);
+              }}
+              className="title absolute inset-x-0 bottom-12.5 z-1 w-full truncate bg-transparent px-10 text-center text-[40px] font-bold capitalize outline-0 drop-shadow-sm"
               style={{ color: COLORS.textPrimary }}
             />
+
             <div
               className="absolute inset-x-0 bottom-0 h-12"
               style={{
@@ -180,24 +272,22 @@ useEffect(() => {
         )}
 
         <div className="flex-1">
-          <div className="max-w-3xl mx-auto">
-            <>
-              <style>
-    {`
-      .tiptap ::selection {
-        background-color: ${COLORS.accent}cc;
-        color: ${COLORS.textPrimary};
-      }
-    `}
-  </style>
+          <div className="mx-auto max-w-3xl">
+            <style>
+              {`
+                .tiptap ::selection {
+                  background-color: ${COLORS.accent}cc;
+                  color: ${COLORS.textPrimary};
+                }
+              `}
+            </style>
+
             <EditorContent
-              style={{
-                overflowX: "auto",
-              }}
               editor={editor}
               spellCheck
               className="px-8 py-6 focus:outline-none"
-            /></>
+              style={{ overflowX: "auto" }}
+            />
           </div>
         </div>
       </div>
@@ -209,11 +299,48 @@ useEffect(() => {
         className="hidden"
         onChange={handleImageUpload}
       />
-      {/* <CreateFab title="save" onClick={create} /> */}
-      <Button onClick={create} className="fixed bottom-6 right-6 z-50 cursor-pointer" style={{ backgroundColor: COLORS.accent, color: COLORS.bgPrimary }}>
-        <Pen size={24}/>
+
+      <Button
+        onClick={create}
+        className="fixed bottom-6 right-6 z-50 cursor-pointer"
+        style={{
+          backgroundColor: COLORS.accent,
+          color: COLORS.bgPrimary,
+        }}
+      >
+        <Pen size={24} />
         Save Note
       </Button>
+
+      <AlertDialog
+        open={showLeaveDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleStay();
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave without saving?</AlertDialogTitle>
+
+            <AlertDialogDescription>
+              You have unsaved changes in this note. If you leave this page,
+              your changes may be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleStay}>
+              Keep editing
+            </AlertDialogCancel>
+
+            <AlertDialogAction onClick={handleLeave}>
+              Leave page
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

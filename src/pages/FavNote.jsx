@@ -49,7 +49,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Underline from "@tiptap/extension-underline";
 
-// shadcn components ke default rounded ko inline override karne ke liye
+
 const SHARP = { borderRadius: 0 };
 
 export default function FavNote() {

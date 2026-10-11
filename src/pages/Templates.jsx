@@ -40,7 +40,7 @@ function catColor(cat) {
   return CAT_COLORS[cat] || "#71717a";
 }
 
-// shadcn components ke default rounded ko inline override karne ke liye
+
 const SHARP = { borderRadius: 0 };
 
 export default function Templates() {
@@ -57,7 +57,7 @@ export default function Templates() {
 
   const [view, setView] = useState(
     settings?.default_view === "list" ? "list" : "grid",
-  ); // "grid" | "list"
+  ); 
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -298,7 +298,7 @@ export default function Templates() {
                     <Button
                       type="button"
                       size="sm"
-                      // eslint-disable-next-line react-hooks/rules-of-hooks
+                      
                       onClick={() => useTemplate(t)}
                       className="flex-1 gap-1.5 text-xs font-medium"
                       style={S.accentBtn}
@@ -405,7 +405,7 @@ export default function Templates() {
                   <Button
                     type="button"
                     size="sm"
-                    // eslint-disable-next-line react-hooks/rules-of-hooks
+                    
                     onClick={() => useTemplate(t)}
                     className="gap-1.5 text-xs font-medium"
                     style={S.accentBtn}
